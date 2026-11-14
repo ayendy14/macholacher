@@ -62,7 +62,7 @@ input,select{width:100%;padding:8px 10px;border:1px solid var(--line);border-rad
 .seg button{flex:1;padding:8px 4px;border:1px solid var(--line);background:#fff;border-radius:8px;cursor:pointer;font-size:14px}
 .seg button.on{background:var(--acc);color:#fff;border-color:var(--acc);font-weight:700}
 .seg button.pm{flex:0 0 44px;color:var(--mut)}
-.tp{display:flex;gap:8px;align-items:center}.tp select{width:84px;flex:none;direction:ltr;text-align:center}.tp .seg{flex:1}
+.tp{display:flex;gap:6px;align-items:center;direction:ltr}.tp select{flex:1;text-align:center;direction:ltr}.tp b{font-size:18px}
 .sum{text-align:center;font-weight:700;font-size:17px;margin-top:12px;direction:ltr}
 table{width:100%;border-collapse:collapse;font-size:13px}
 td,th{padding:8px 10px;border-bottom:1px solid var(--line);text-align:start;vertical-align:top}
@@ -209,38 +209,46 @@ function resetAll(){
 }
 
 // ===== טופס הזמנה / שיעור =====
-let cur=null,color=null,pMin=0,pDur=60;               // pMin = דקות ההתחלה (0/15/30/45), pDur = משך בדקות
-const pStart=()=>+$('#hh').value*60+pMin;
+let cur=null,color=null,pDur=60;                      // pDur = משך בדקות (למשתמש רגיל)
+const MINS=[0,15,30,45];
+const pStart=()=>+$('#hh').value*60+ +$('#hm').value;
+const pEnd=()=>st.admin?+$('#eh').value*60+ +$('#em').value:pStart()+pDur;
+const setT=(h,m,v)=>{v=Math.min(Math.max(v,S0),S1);$(h).value=Math.floor(v/60);$(m).value=v%60};
 function open(o){
-  cur=o;color=o.color||COLORS[5];pMin=o.start%60;pDur=o.dur||60;
+  cur=o;color=o.color||COLORS[5];pDur=o.dur||60;
   const cls=o.mode==='c',isNew=!o.id,adm=st.admin;
   const opts=(a,v)=>a.map(x=>`<option value="${x[0]}" ${x[0]==v?'selected':''}>${x[1]}</option>`).join('');
-  const hrs=[];for(let h=S0/60;h<S1/60;h++)hrs.push([h,String(h).padStart(2,'0')]);
+  const hrs=(a,b)=>{const r=[];for(let h=a;h<=b;h++)r.push([h,String(h).padStart(2,'0')]);return r};
+  const mins=MINS.map(m=>[m,String(m).padStart(2,'0')]);
   const when=cls?`<div><label>יום</label><select id="dy">${opts(DAYS.map((d,i)=>[i,d]),o.wd)}</select></div>`:`<div><label>תאריך</label><input type="date" id="dt" value="${o.date||''}"></div>`;
+  const end=o.start+(o.dur||60);
+  const len=adm?`<label>שעת סיום</label><div class="tp"><select id="eh">${opts(hrs(S0/60,S1/60),Math.floor(end/60))}</select><b>:</b><select id="em">${opts(mins,end%60)}</select></div>`
+               :`<label>משך</label><div class="seg" id="du"></div>`;
   $('#box').innerHTML=`<h2>${cls?(isNew?'שיעור קבוע חדש':'שיעור קבוע'):isNew?'הזמנת חזרה':'עריכת חזרה'}</h2>
   <label>${cls?'שם השיעור':'שם היוצרת'}</label><input id="nm" value="${esc(cls?o.title:o.name)}" maxlength="40">
   <div class="row"><div><label>סטודיו</label><select id="st">${opts([['A',SN.A],['B',SN.B]],o.studio)}</select></div>${when}</div>
   <label>שעת התחלה</label>
-  <div class="tp"><select id="hh">${opts(hrs,Math.floor(o.start/60))}</select><div class="seg" id="mm"></div></div>
-  <label>משך</label>
-  <div class="seg" id="du"></div>
+  <div class="tp"><select id="hh">${opts(hrs(S0/60,S1/60-1),Math.floor(o.start/60))}</select><b>:</b><select id="hm">${opts(mins,o.start%60)}</select></div>
+  ${len}
   <div class="sum" id="sm"></div>
   ${adm&&!cls?`<label class="ck" style="margin-top:12px;font-size:18px" title="נעול" aria-label="נעול"><input type="checkbox" id="lk" ${o.locked?'checked':''}> 🔒</label>`:''}<label>צבע</label><div class="sw" id="sw"></div>
   <div class="err" id="er"></div>
   <div class="acts"><button class="btn pri" id="sv">שמירה</button><button class="btn" id="cn">ביטול</button><span class="sp"></span>${isNew?'':'<button class="btn del" id="rm">מחיקה</button>'}</div>`;
   paint();paintTime();$('#m').classList.add('on');
-  $('#hh').onchange=paintTime;
-  $('#mm').onclick=e=>{const b=e.target.closest('button');if(b){pMin=+b.dataset.m;paintTime()}};
-  $('#du').onclick=e=>{const b=e.target.closest('button');if(!b)return;const d=b.dataset.d;pDur=d[0]==='+'||d[0]==='-'?Math.max(15,pDur+ +d):+d;paintTime()};
+  // שינוי שעת ההתחלה (במצב מנהל) מזיז את שעת הסיום כך שהמשך נשמר
+  let lastS=pStart();
+  const onStart=()=>{const s=pStart();if(adm){setT('#eh','#em',pEnd()+(s-lastS))}lastS=s;paintTime()};
+  $('#hh').onchange=onStart;$('#hm').onchange=onStart;
+  if(adm){$('#eh').onchange=paintTime;$('#em').onchange=paintTime}
+  else $('#du').onclick=e=>{const b=e.target.closest('button');if(b){pDur=+b.dataset.d;paintTime()}};
   $('#cn').onclick=close;$('#sv').onclick=save;if(!isNew)$('#rm').onclick=remove;
 }
 function paintTime(){
-  $('#mm').innerHTML=[0,15,30,45].map(m=>`<button type="button" data-m="${m}" class="${m===pMin?'on':''}">${String(m).padStart(2,'0')}</button>`).join('');
   const L={30:'30 דק׳',45:'45 דק׳',60:'שעה'};
-  $('#du').innerHTML=DURS.map(d=>`<button type="button" data-d="${d}" class="${d===pDur?'on':''}">${L[d]}</button>`).join('')+
-    (st.admin?`<button type="button" class="pm" data-d="-15">−15</button><button type="button" class="pm" data-d="+15">+15</button>`:'');
-  const s=pStart(),ex=DURS.includes(pDur)?'':` (${pDur} דק׳)`;
-  $('#sm').textContent=tm(s)+' – '+tm(s+pDur)+ex;
+  if(!st.admin)$('#du').innerHTML=DURS.map(d=>`<button type="button" data-d="${d}" class="${d===pDur?'on':''}">${L[d]}</button>`).join('');
+  const s=pStart(),e=pEnd(),d=e-s,ex=st.admin?(d>0?` (${d} דק׳)`:''):'';
+  $('#sm').textContent=tm(s)+' – '+tm(e)+ex;
+  $('#sm').style.color=d>0?'':'#c0392b';
 }
 function paint(){$('#sw').innerHTML=(st.admin?[BLK,...COLORS]:COLORS).map(c=>`<i data-c="${c}" class="${c===color?'on':''}" style="background:${c}"></i>`).join('');$('#sw').onclick=e=>{if(e.target.dataset.c){color=e.target.dataset.c;paint()}}}
 $('#m').onclick=e=>{if(e.target.id==='m')close()};
@@ -257,7 +265,7 @@ function ask(title,msg,ok){return new Promise(res=>{
 const clash=(a,b)=>a.start<b.start+b.dur&&b.start<a.start+a.dur;
 function save(){
   const cls=cur.mode==='c',adm=st.admin,er=m=>$('#er').textContent=m;
-  const name=$('#nm').value.trim(),studio=$('#st').value,start=pStart(),dur=pDur,me={start,dur};
+  const name=$('#nm').value.trim(),studio=$('#st').value,start=pStart(),dur=pEnd()-start,me={start,dur};
   if(!name)return er('נא להזין שם.');
   if(dur<=0)return er('שעת הסיום חייבת להיות אחרי ההתחלה.');
   if(start+dur>S1)return er('החזרה חורגת משעת הסגירה ('+tm(S1)+').');
