@@ -95,7 +95,11 @@ const RemoteDB=(()=>{
   const snap=c=>{const docs=Object.entries(D[c]).map(([id,v])=>({id,exists:true,data:()=>v}));return{docs,size:docs.length,empty:!docs.length,docChanges:()=>[],metadata:{fromCache:false}}};
   const fire=c=>(L[c]||[]).forEach(f=>f(snap(c)));
   const poll=async()=>{if(busy||document.hidden)return;try{const r=await GAS.call('getAll',[ADMINPW]);if(busy)return;Object.keys(r).forEach(c=>{D[c]=r[c];fire(c)})}catch(e){}};
-  setInterval(poll,5000);
+  let last=Date.now();
+  ['pointerdown','keydown','touchstart','scroll'].forEach(ev=>addEventListener(ev,()=>{last=Date.now()},{passive:true}));
+  const tick=()=>{poll();setTimeout(tick,Date.now()-last>120000?60000:20000)};
+  setTimeout(tick,20000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden){last=Date.now();poll()}});
   const w=async(c,id,d)=>{busy++;try{await GAS.call('write',[c,id,d,ADMINPW])}finally{busy--;poll()}};
   return{collection:c=>({
     get:async()=>snap(c),
