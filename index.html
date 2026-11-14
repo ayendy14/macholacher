@@ -57,6 +57,13 @@ input,select{width:100%;padding:8px 10px;border:1px solid var(--line);border-rad
 .acts{display:flex;gap:8px;margin-top:16px}
 .err{color:#c0392b;font-size:13px;min-height:18px;margin-top:8px}
 .msg{background:#fafafa;border:1px solid var(--line);border-radius:10px;padding:12px;color:var(--mut)}
+.msg.ld{display:flex;align-items:center;gap:12px;justify-content:center;padding:40px}.msg.ld::before{content:'';width:22px;height:22px;border:3px solid var(--line);border-top-color:var(--acc);border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+.seg{display:flex;gap:4px}
+.seg button{flex:1;padding:8px 4px;border:1px solid var(--line);background:#fff;border-radius:8px;cursor:pointer;font-size:14px}
+.seg button.on{background:var(--acc);color:#fff;border-color:var(--acc);font-weight:700}
+.seg button.pm{flex:0 0 44px;color:var(--mut)}
+.tp{display:flex;gap:8px;align-items:center}.tp select{width:84px;flex:none;direction:ltr;text-align:center}.tp .seg{flex:1}
+.sum{text-align:center;font-weight:700;font-size:17px;margin-top:12px;direction:ltr}
 table{width:100%;border-collapse:collapse;font-size:13px}
 td,th{padding:8px 10px;border-bottom:1px solid var(--line);text-align:start;vertical-align:top}
 th{color:var(--mut);font-weight:600}
@@ -69,16 +76,17 @@ th{color:var(--mut);font-weight:600}
   <button class="btn" id="prev">→</button><span class="wk" id="wk"></span><button class="btn" id="next">←</button>
   <button class="btn" id="today">היום</button>
 </div>
-<div id="view"><div class="msg">טוען…</div></div>
+<div id="view"><div class="msg ld">טוען את הלוז…</div></div>
 </main>
 <div class="modal" id="m"><div class="box" id="box"></div></div><div class="toast" id="toast"></div>
 <script>
 const COLORS=['#ee294b','#e8924a','#d4a017','#4fa35f','#2f9b97','#4f86d9','#8a6ad6','#d76aa8','#8d5a3b','#6b7280','#1f3a8a','#14b8a6','#f472b6','#84cc16'],BLK='#111111';
 const S0=480,S1=1380,H=24,DAYS=['ראשון','שני','שלישי','רביעי','חמישי','שישי'],SN={A:'סטודיו גדול',B:'סטודיו קטן'};
+const DURS=[30,45,60];                                   // משכי חזרה לבחירה (לכולם)
 const $=s=>document.querySelector(s);
 const sun=d=>{d=new Date(d);d.setHours(0,0,0,0);d.setDate(d.getDate()-d.getDay());return d};
 const start=()=>{const t=new Date();if(t.getDay()===6)t.setDate(t.getDate()+1);return sun(t)};
-const st={week:start(),view:'s',bk:{},cl:{},lg:{},admin:false,db:null,anim:'',subH:false};
+const st={week:start(),view:'s',bk:{},cl:{},lg:{},admin:false,db:null,anim:'',subH:false,loaded:false};
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const key=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const tm=m=>String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
@@ -94,7 +102,8 @@ const RemoteDB=(()=>{
   const L={},D={bookings:{},classes:{},history:{}};let busy=0;
   const snap=c=>{const docs=Object.entries(D[c]).map(([id,v])=>({id,exists:true,data:()=>v}));return{docs,size:docs.length,empty:!docs.length,docChanges:()=>[],metadata:{fromCache:false}}};
   const fire=c=>(L[c]||[]).forEach(f=>f(snap(c)));
-  const poll=async()=>{if(busy||document.hidden)return;try{const r=await GAS.call('getAll',[ADMINPW]);if(busy)return;Object.keys(r).forEach(c=>{D[c]=r[c];fire(c)})}catch(e){}};
+  const poll=async()=>{if(busy||document.hidden)return;try{const r=await GAS.call('getAll',[ADMINPW]);if(busy)return;st.loaded=true;Object.keys(r).forEach(c=>{D[c]=r[c];fire(c)})}catch(e){if(!st.loaded)$('#view').innerHTML='<div class="msg ld">החיבור לשרת נכשל, מנסים שוב…</div>'}};
+  // רענון חסכוני: כל 20 שניות בזמן פעילות, כל דקה כשאין פעילות, ומיד כשחוזרים לטאב
   let last=Date.now();
   ['pointerdown','keydown','touchstart','scroll'].forEach(ev=>addEventListener(ev,()=>{last=Date.now()},{passive:true}));
   const tick=()=>{poll();setTimeout(tick,Date.now()-last>120000?60000:20000)};
@@ -124,7 +133,7 @@ function render(){
   const b=(v,t)=>`<button class="btn ${st.view===v?'on':''}" data-v="${v}">${t}</button>`;
   $('#adm').innerHTML=st.admin?`<span class="badge">מצב מנהל</span>${b('s','לוז חזרות')}${b('p','מערכת שעות קבועה')}${b('h','היסטוריה')}<span class="sp"></span><button class="btn del" id="rs">איפוס הכול</button>`:'';
   $('#nav').style.display=st.view==='s'?'flex':'none';
-  if(!st.db){$('#view').innerHTML='<div class="msg">יש להתחבר ל-claude.ai כדי לראות את הלוח.</div>';return}
+  if(!st.loaded){$('#view').innerHTML='<div class="msg ld">טוען את הלוז…</div>';return}
   st.view==='h'?hist():grid(st.view==='p');
 }
 $('#adm').onclick=e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.v){st.view=b.dataset.v;render()}else if(b.id==='rs')resetAll()};
@@ -163,7 +172,10 @@ $('#view').onclick=e=>{
     if(ev.dataset.t==='c'){if(perm)open({mode:'c',id,...st.cl[id]});return}
     if(st.bk[id]&&st.bk[id].locked&&!st.admin)return;open({mode:'b',id,...st.bk[id]});return}
   const sl=e.target.closest('.sl');if(!sl)return;
-  const s=+sl.dataset.t,dur=s+60<=S1?60:30;
+  // לחיצה בחצי העליון של המשבצת = xx:00 / xx:30, בחצי התחתון = xx:15 / xx:45
+  let s=+sl.dataset.t+(e.clientY-sl.getBoundingClientRect().top>H/2?15:0);
+  if(s+30>S1)s-=15;
+  const dur=s+60<=S1?60:30;
   perm?open({mode:'c',start:s,dur,wd:+col.dataset.w,studio:col.dataset.s,color:BLK,title:'שיעור'}):open({mode:'b',date:col.dataset.d,start:s,dur,studio:col.dataset.s,color:st.admin?BLK:COLORS[5],name:myName});
 };
 
@@ -196,26 +208,39 @@ function resetAll(){
   $('#r1').onclick=()=>pick(false);$('#r2').onclick=()=>pick(true);
 }
 
-let cur=null,color=null;
+// ===== טופס הזמנה / שיעור =====
+let cur=null,color=null,pMin=0,pDur=60;               // pMin = דקות ההתחלה (0/15/30/45), pDur = משך בדקות
+const pStart=()=>+$('#hh').value*60+pMin;
 function open(o){
-  cur=o;color=o.color||COLORS[5];
+  cur=o;color=o.color||COLORS[5];pMin=o.start%60;pDur=o.dur||60;
   const cls=o.mode==='c',isNew=!o.id,adm=st.admin;
   const opts=(a,v)=>a.map(x=>`<option value="${x[0]}" ${x[0]==v?'selected':''}>${x[1]}</option>`).join('');
-  const tms=(a,b,v)=>{const r=[];for(let m=a;m<=b;m+=30)r.push([m,tm(m)]);if(v!=null&&!r.some(x=>x[0]===v)){r.push([v,tm(v)]);r.sort((p,q)=>p[0]-q[0])}return r};
-  const dl=[60,30];if(o.dur&&!dl.includes(o.dur))dl.push(o.dur);
-  const L={60:'שעה',30:'30 דקות'};
+  const hrs=[];for(let h=S0/60;h<S1/60;h++)hrs.push([h,String(h).padStart(2,'0')]);
   const when=cls?`<div><label>יום</label><select id="dy">${opts(DAYS.map((d,i)=>[i,d]),o.wd)}</select></div>`:`<div><label>תאריך</label><input type="date" id="dt" value="${o.date||''}"></div>`;
-  const len=adm?`<div><label>סיום</label><select id="en">${opts(tms(S0+30,S1,o.start+o.dur),o.start+o.dur)}</select></div>`:`<div><label>משך</label><select id="du">${opts(dl.map(d=>[d,L[d]||d+' דקות']),o.dur)}</select></div>`;
   $('#box').innerHTML=`<h2>${cls?(isNew?'שיעור קבוע חדש':'שיעור קבוע'):isNew?'הזמנת חזרה':'עריכת חזרה'}</h2>
   <label>${cls?'שם השיעור':'שם היוצרת'}</label><input id="nm" value="${esc(cls?o.title:o.name)}" maxlength="40">
   <div class="row"><div><label>סטודיו</label><select id="st">${opts([['A',SN.A],['B',SN.B]],o.studio)}</select></div>${when}</div>
-  <div class="row"><div><label>התחלה</label><select id="s0">${opts(tms(S0,S1-30,o.start),o.start)}</select></div>${len}</div>
-  
+  <label>שעת התחלה</label>
+  <div class="tp"><select id="hh">${opts(hrs,Math.floor(o.start/60))}</select><div class="seg" id="mm"></div></div>
+  <label>משך</label>
+  <div class="seg" id="du"></div>
+  <div class="sum" id="sm"></div>
   ${adm&&!cls?`<label class="ck" style="margin-top:12px;font-size:18px" title="נעול" aria-label="נעול"><input type="checkbox" id="lk" ${o.locked?'checked':''}> 🔒</label>`:''}<label>צבע</label><div class="sw" id="sw"></div>
   <div class="err" id="er"></div>
   <div class="acts"><button class="btn pri" id="sv">שמירה</button><button class="btn" id="cn">ביטול</button><span class="sp"></span>${isNew?'':'<button class="btn del" id="rm">מחיקה</button>'}</div>`;
-  paint();$('#m').classList.add('on');
+  paint();paintTime();$('#m').classList.add('on');
+  $('#hh').onchange=paintTime;
+  $('#mm').onclick=e=>{const b=e.target.closest('button');if(b){pMin=+b.dataset.m;paintTime()}};
+  $('#du').onclick=e=>{const b=e.target.closest('button');if(!b)return;const d=b.dataset.d;pDur=d[0]==='+'||d[0]==='-'?Math.max(15,pDur+ +d):+d;paintTime()};
   $('#cn').onclick=close;$('#sv').onclick=save;if(!isNew)$('#rm').onclick=remove;
+}
+function paintTime(){
+  $('#mm').innerHTML=[0,15,30,45].map(m=>`<button type="button" data-m="${m}" class="${m===pMin?'on':''}">${String(m).padStart(2,'0')}</button>`).join('');
+  const L={30:'30 דק׳',45:'45 דק׳',60:'שעה'};
+  $('#du').innerHTML=DURS.map(d=>`<button type="button" data-d="${d}" class="${d===pDur?'on':''}">${L[d]}</button>`).join('')+
+    (st.admin?`<button type="button" class="pm" data-d="-15">−15</button><button type="button" class="pm" data-d="+15">+15</button>`:'');
+  const s=pStart(),ex=DURS.includes(pDur)?'':` (${pDur} דק׳)`;
+  $('#sm').textContent=tm(s)+' – '+tm(s+pDur)+ex;
 }
 function paint(){$('#sw').innerHTML=(st.admin?[BLK,...COLORS]:COLORS).map(c=>`<i data-c="${c}" class="${c===color?'on':''}" style="background:${c}"></i>`).join('');$('#sw').onclick=e=>{if(e.target.dataset.c){color=e.target.dataset.c;paint()}}}
 $('#m').onclick=e=>{if(e.target.id==='m')close()};
@@ -232,7 +257,7 @@ function ask(title,msg,ok){return new Promise(res=>{
 const clash=(a,b)=>a.start<b.start+b.dur&&b.start<a.start+a.dur;
 function save(){
   const cls=cur.mode==='c',adm=st.admin,er=m=>$('#er').textContent=m;
-  const name=$('#nm').value.trim(),studio=$('#st').value,start=+$('#s0').value,dur=adm?+$('#en').value-start:+$('#du').value,me={start,dur};
+  const name=$('#nm').value.trim(),studio=$('#st').value,start=pStart(),dur=pDur,me={start,dur};
   if(!name)return er('נא להזין שם.');
   if(dur<=0)return er('שעת הסיום חייבת להיות אחרי ההתחלה.');
   if(start+dur>S1)return er('החזרה חורגת משעת הסגירה ('+tm(S1)+').');
