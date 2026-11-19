@@ -54,9 +54,15 @@ label{display:block;font-size:12px;color:var(--mut);margin:10px 0 3px}
 input,select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fafafa}
 .row{display:flex;gap:8px}.row>*{flex:1}
 .ck{display:flex;align-items:center;gap:6px;margin:0;font-size:14px;color:var(--fg);flex:2}.ck input{width:16px;height:16px}
-.sw{display:flex;gap:7px;flex-wrap:wrap}
-.sw i{width:26px;height:26px;border-radius:50%;cursor:pointer;border:3px solid transparent}
-.sw i.on{border-color:var(--fg)}
+.cp{display:flex;align-items:center;justify-content:center;gap:16px}
+.wh{position:relative;width:150px;height:150px;flex:none}
+.ring{position:absolute;inset:0;border-radius:50%;cursor:pointer;touch-action:none;
+  -webkit-mask:radial-gradient(circle closest-side,#0000 61%,#000 62%);mask:radial-gradient(circle closest-side,#0000 61%,#000 62%)}
+.mk{position:absolute;width:24px;height:24px;margin:-12px 0 0 -12px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 1px #0006,0 1px 4px #0005;pointer-events:none}
+.pv{position:absolute;inset:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;box-shadow:inset 0 0 0 1px #0002;pointer-events:none}
+.sw{display:flex;flex-direction:column;gap:8px}
+.sw i{width:30px;height:30px;border-radius:50%;cursor:pointer;border:3px solid transparent;box-shadow:0 0 0 1px var(--line)}
+.sw i.on{border-color:var(--acc)}
 .acts{display:flex;gap:8px;margin-top:16px}
 .err{color:#c0392b;font-size:13px;min-height:18px;margin-top:8px}
 .msg{background:#fafafa;border:1px solid var(--line);border-radius:10px;padding:12px;color:var(--mut)}
@@ -87,7 +93,17 @@ th{color:var(--mut);font-weight:600}
 </main>
 <div class="modal" id="m"><div class="box" id="box"></div></div><div class="toast" id="toast"></div>
 <script>
-const COLORS=['#ee294b','#e8924a','#d4a017','#4fa35f','#2f9b97','#4f86d9','#8a6ad6','#d76aa8','#8d5a3b','#1f3a8a','#14b8a6','#f472b6','#84cc16'],BLK='#111111';
+const BLK='#111111',GRAY='#6b7280';                      // צבעים למנהל בלבד
+// ===== צבעים: גלגל צבעים עם 30 גוונים בהירים (בלי שחור/אפור/לבן) =====
+const STEPS=30,SAT=72,LIT=48;                            // מספר הגוונים בגלגל, רוויה ובהירות
+const hsl=h=>{const s=SAT/100,l=LIT/100,f=n=>{const k=(n+h/30)%12,c=l-s*Math.min(l,1-l)*Math.max(-1,Math.min(k-3,9-k,1));return Math.round(c*255).toString(16).padStart(2,'0')};return '#'+f(0)+f(8)+f(4)};
+const hueOf=c=>{const r=parseInt(c.slice(1,3),16)/255,g=parseInt(c.slice(3,5),16)/255,b=parseInt(c.slice(5,7),16)/255,mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn;if(d<.08)return null;let h=mx===r?((g-b)/d)%6:mx===g?(b-r)/d+2:(r-g)/d+4;return (h*60+360)%360};
+const snap=h=>Math.round(h/(360/STEPS))%STEPS*(360/STEPS);
+const lum=c=>{const v=[1,3,5].map(i=>{const x=parseInt(c.slice(i,i+2),16)/255;return x<=.03928?x/12.92:Math.pow((x+.055)/1.055,2.4)});return .2126*v[0]+.7152*v[1]+.0722*v[2]};
+const ink=c=>/^#[0-9a-f]{6}$/i.test(c||'')&&lum(c)>.3?'#1a1a1a':'#fff';   // טקסט כהה על צבעים בהירים
+// הצבע הקבוע של המכשיר (נשמר בנפרד למנהל ולמשתמש רגיל)
+const myColor=()=>{let c='';try{c=localStorage.getItem(st.admin?'clrA':'clr')||''}catch(e){}return c||(st.admin?BLK:hsl(210))};
+const saveColor=c=>{try{localStorage.setItem(st.admin?'clrA':'clr',c)}catch(e){}};
 const S0=480,S1=1380,H=24,DAYS=['ראשון','שני','שלישי','רביעי','חמישי','שישי'],SN={A:'סטודיו גדול',B:'סטודיו קטן'};
 const DURS=[30,45,60];                                   // משכי חזרה לבחירה (לכולם)
 const DEFAULT_SHOW='2027-02-11';                         // מועד המופע כברירת מחדל (ניתן לשינוי במצב מנהל)
@@ -163,11 +179,14 @@ function countdown(){
   if(days<0)txt='המופע כבר היה 🎉';
   else if(days===0)txt='המופע היום! 🎉';
   else if(days===1)txt='המופע מחר!';
-  else if(days<=7)txt='עוד '+(days===7?'שבוע':HE.d(days))+' למופע';
+  else if(days<7)txt='עוד '+HE.d(days)+' למופע';
   else{
-    let m=0;for(;;){const x=new Date(t);x.setMonth(x.getMonth()+m+1);if(x>d)break;m++}
-    const x=new Date(t);x.setMonth(x.getMonth()+m);const w=Math.floor(Math.round((d-x)/864e5)/7);
-    txt='עוד '+(m>=2?HE.m(m):m===1?'חודש'+(w?(w>=3?' ו-':' ו')+HE.w(w):''):HE.w(w))+' למופע';
+    // חודשים מלאים (בלי גלישה בסוף חודש, למשל 31 בינואר + חודש = 28 בפברואר), ואז שבועות מלאים
+    const addM=n=>{const x=new Date(t.getFullYear(),t.getMonth()+n,1);x.setDate(Math.min(t.getDate(),new Date(x.getFullYear(),x.getMonth()+1,0).getDate()));return x};
+    let m=0;while(addM(m+1)<=d)m++;
+    const w=Math.floor(Math.round((d-addM(m))/864e5)/7);
+    const parts=[];if(m)parts.push(HE.m(m));if(w)parts.push(HE.w(w));
+    txt='עוד '+parts[0]+(parts[1]?(/^\d/.test(parts[1])?' ו-':' ו')+parts[1]:'')+' למופע ('+days+' ימים)';
   }
   el.style.display='';el.innerHTML=`${esc(txt)} <small>${d.toLocaleDateString('he-IL',{day:'numeric',month:'long'})}</small>`;
 }
@@ -200,7 +219,7 @@ function grid(perm){
 }
 function evt(id,e,cls,t){
   const ht=e.dur/30*H-2;
-  return `<div class="ev ${cls}" data-id="${id}" data-t="${t}" style="top:${(e.start-S0)/30*H}px;height:${ht}px;background-color:${e.color}"><b>${cls?'🔒 ':''}${esc(e.title||e.name)}</b>${ht>30?`<small>${tm(e.start)}–${tm(e.start+e.dur)}</small>`:''}</div>`;
+  return `<div class="ev ${cls}" data-id="${id}" data-t="${t}" style="top:${(e.start-S0)/30*H}px;height:${ht}px;background-color:${e.color};color:${ink(e.color)}"><b>${cls?'🔒 ':''}${esc(e.title||e.name)}</b>${ht>30?`<small>${tm(e.start)}–${tm(e.start+e.dur)}</small>`:''}</div>`;
 }
 function hist(){
   const L=Object.values(st.lg).sort((a,b)=>b.ts-a.ts).slice(0,300);
@@ -225,7 +244,7 @@ $('#view').onclick=e=>{
   let s=+sl.dataset.t+(e.clientY-sl.getBoundingClientRect().top>H/2?15:0);
   if(s+30>S1)s-=15;
   const dur=s+60<=S1?60:30;
-  perm?open({mode:'c',start:s,dur,wd:+col.dataset.w,studio:col.dataset.s,color:BLK,title:'שיעור'}):open({mode:'b',date:col.dataset.d,start:s,dur,studio:col.dataset.s,color:st.admin?BLK:COLORS[5],name:myName});
+  perm?open({mode:'c',start:s,dur,wd:+col.dataset.w,studio:col.dataset.s,color:BLK,title:'שיעור'}):open({mode:'b',date:col.dataset.d,start:s,dur,studio:col.dataset.s,color:myColor(),name:myName});
 };
 
 // admin
@@ -264,7 +283,8 @@ const pStart=()=>+$('#hh').value*60+ +$('#hm').value;
 const pEnd=()=>st.admin?+$('#eh').value*60+ +$('#em').value:pStart()+pDur;
 const setT=(h,m,v)=>{v=Math.min(Math.max(v,S0),S1);$(h).value=Math.floor(v/60);$(m).value=v%60};
 function open(o){
-  cur=o;color=o.color||COLORS[5];pDur=o.dur||60;
+  cur=o;color=o.color||myColor();pDur=o.dur||60;
+  if(!st.admin&&(color===BLK||color===GRAY||hueOf(color)===null))color=hsl(210);   // משתמש רגיל לא יכול להשאיר שחור/אפור
   const cls=o.mode==='c',isNew=!o.id,adm=st.admin;
   const opts=(a,v)=>a.map(x=>`<option value="${x[0]}" ${x[0]==v?'selected':''}>${x[1]}</option>`).join('');
   const hrs=(a,b)=>{const r=[];for(let h=a;h<=b;h++)r.push([h,String(h).padStart(2,'0')]);return r};
@@ -280,7 +300,7 @@ function open(o){
   <div class="tp"><select id="hh">${opts(hrs(S0/60,S1/60-1),Math.floor(o.start/60))}</select><b>:</b><select id="hm">${opts(mins,o.start%60)}</select></div>
   ${len}
   <div class="sum" id="sm"></div>
-  ${adm&&!cls?`<label class="ck" style="margin-top:12px;font-size:18px" title="נעול" aria-label="נעול"><input type="checkbox" id="lk" ${o.locked?'checked':''}> 🔒</label>`:''}<label>צבע</label><div class="sw" id="sw"></div>
+  ${adm&&!cls?`<label class="ck" style="margin-top:12px;font-size:18px" title="נעול" aria-label="נעול"><input type="checkbox" id="lk" ${o.locked?'checked':''}> 🔒</label>`:''}<label>צבע</label><div class="cp"><div class="wh"><div class="ring" id="ring"></div><div class="mk" id="mk"></div><div class="pv" id="pv"></div></div>${adm?`<div class="sw" id="sw"><i data-c="${BLK}" style="background:${BLK}" title="שחור"></i><i data-c="${GRAY}" style="background:${GRAY}" title="אפור"></i></div>`:''}</div>
   <div class="err" id="er"></div>
   <div class="acts"><button class="btn pri" id="sv">שמירה</button><button class="btn" id="cn">ביטול</button><span class="sp"></span>${isNew?'':'<button class="btn del" id="rm">מחיקה</button>'}</div>`;
   paint();paintTime();$('#m').classList.add('on');
@@ -296,11 +316,33 @@ function open(o){
 function paintTime(){
   const L={30:'30 דק׳',45:'45 דק׳',60:'שעה'};
   if(!st.admin)$('#du').innerHTML=DURS.map(d=>`<button type="button" data-d="${d}" class="${d===pDur?'on':''}">${L[d]}</button>`).join('');
-  const s=pStart(),e=pEnd(),d=e-s,ex=st.admin?(d>0?` (${d} דק׳)`:''):'';
-  $('#sm').textContent=tm(s)+' – '+tm(e)+ex;
+  const s=pStart(),e=pEnd(),d=e-s,ex=st.admin&&d>0?` <span dir="rtl">(${d} דק׳)</span>`:'';
+  $('#sm').innerHTML=tm(s)+' – '+tm(e)+ex;
   $('#sm').style.color=d>0?'':'#c0392b';
 }
-function paint(){$('#sw').innerHTML=(st.admin?[BLK,...COLORS]:COLORS).map(c=>`<i data-c="${c}" class="${c===color?'on':''}" style="background:${c}"></i>`).join('');$('#sw').onclick=e=>{if(e.target.dataset.c){color=e.target.dataset.c;dirty=true;paint()}}}
+// גלגל הצבעים: נצבע ב-24 מקטעים, לחיצה או גרירה בוחרת את הגוון הקרוב
+function paint(){
+  const ring=$('#ring'),seg=360/STEPS;
+  ring.style.background='conic-gradient('+[...Array(STEPS)].map((_,i)=>`${hsl(i*seg)} ${i*seg-seg/2}deg ${i*seg+seg/2}deg`).join(',')+','+hsl(0)+' 352.5deg)';
+  const show=()=>{
+    const h=hueOf(color),mk=$('#mk'),pv=$('#pv');
+    if(h===null||color===BLK||color===GRAY)mk.style.display='none';
+    else{const a=snap(h)*Math.PI/180,r=61;mk.style.display='';mk.style.left=75+r*Math.sin(a)+'px';mk.style.top=75-r*Math.cos(a)+'px';mk.style.background=color}
+    pv.style.background=color;pv.style.color=ink(color);pv.textContent='אבג';
+    document.querySelectorAll('#sw i').forEach(i=>i.classList.toggle('on',i.dataset.c===color));
+  };
+  const pick=e=>{
+    const b=ring.getBoundingClientRect(),x=e.clientX-b.left-b.width/2,y=e.clientY-b.top-b.height/2;
+    let a=Math.atan2(x,-y)*180/Math.PI;if(a<0)a+=360;
+    color=hsl(snap(a));dirty=true;show();
+  };
+  let down=false;
+  ring.onpointerdown=e=>{down=true;ring.setPointerCapture(e.pointerId);pick(e)};
+  ring.onpointermove=e=>{if(down)pick(e)};
+  ring.onpointerup=ring.onpointercancel=()=>{down=false};
+  if($('#sw'))$('#sw').onclick=e=>{if(e.target.dataset.c){color=e.target.dataset.c;dirty=true;show()}};
+  show();
+}
 // לחיצה על הרקע סוגרת את הטופס – אלא אם יש שינויים שלא נשמרו, ואז מבקשים אישור
 let dirty=false;
 $('#m').onclick=e=>{
@@ -342,6 +384,7 @@ function save(){
     items.push({id:k?uid():(cur.id||uid()),x:{studio,date:dk,start,dur,name,color,locked:!!($('#lk')&&$('#lk').checked)}});
   }
   myName=name;try{localStorage.setItem('nm',name)}catch(e){}
+  saveColor(color);                                           // זוכרים את הצבע לפעם הבאה במכשיר הזה
   const old=cur.id?st.bk[cur.id]:null;
   items.forEach(({id,x})=>{st.bk[id]=x;st.db.collection('bookings').doc(id).set(x).catch(fail)});
   close();render();
