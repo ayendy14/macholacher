@@ -321,7 +321,7 @@ function paint(){
     const h=hueOf(color),mk=$('#mk'),pv=$('#pv');
     if(h===null||color===BLK||color===GRAY)mk.style.display='none';
     else{const a=snap(h)*Math.PI/180,r=61;mk.style.display='';mk.style.left=75+r*Math.sin(a)+'px';mk.style.top=75-r*Math.cos(a)+'px';mk.style.background=color}
-    pv.style.background=color;pv.style.color=ink(color);pv.textContent='שיעור';
+    pv.style.background=color;pv.style.color=ink(color);pv.textContent='חזרה';
     document.querySelectorAll('#sw i').forEach(i=>i.classList.toggle('on',i.dataset.c===color));
   };
   const pick=e=>{
