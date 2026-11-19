@@ -46,6 +46,10 @@ button,select,input{font:inherit;color:inherit}
 .ev small{display:block;opacity:.9;direction:ltr;text-align:right}
 .ev.cls{background-image:repeating-linear-gradient(135deg,#0000 0 6px,#ffffff30 6px 12px);cursor:default}
 .perm .ev.cls{cursor:pointer}
+.ev.hl{z-index:2;outline:2px solid #fff;animation:glow 1.6s ease-in-out infinite}
+@keyframes glow{0%,100%{box-shadow:0 0 4px 1px var(--g)}50%{box-shadow:0 0 14px 5px var(--g)}}
+@media (prefers-reduced-motion:reduce){.ev.hl{animation:none;box-shadow:0 0 10px 4px var(--g)}}
+.cks{display:flex;gap:18px;margin-top:12px}
 .modal{position:fixed;inset:0;background:#0006;display:none;align-items:center;justify-content:center;padding:16px;z-index:20}
 .modal.on{display:flex}
 .box{background:#fff;border-radius:16px;padding:18px;width:100%;max-width:380px;max-height:100%;overflow:auto}
@@ -202,14 +206,14 @@ function grid(perm){
     const i=wds[j],k=key(d),t=!perm&&k===tk;
     h+=`<div class="col ${s==='A'?'df':''} ${t?'t '+(s==='A'?'ts':'te'):''}" data-d="${k}" data-w="${i}" data-s="${s}">${slots}`;
     Object.entries(st.cl).filter(([,c])=>c.studio===s&&c.wd===i).forEach(([id,c])=>h+=evt(id,c,'cls','c'));
-    if(!perm)Object.entries(st.bk).filter(([,b])=>b.studio===s&&b.date===k).forEach(([id,b])=>h+=evt(id,b,b.locked?'cls':'','b'));
+    if(!perm)Object.entries(st.bk).filter(([,b])=>b.studio===s&&b.date===k).forEach(([id,b])=>h+=evt(id,b,(b.locked?'cls ':'')+(b.hl?'hl':''),'b'));
     h+='</div>';
   }));
   $('#view').innerHTML=`<div class="scroll ${perm?'perm':''} ${st.anim}">${h}</div></div>`;st.anim='';
 }
 function evt(id,e,cls,t){
   const ht=e.dur/30*H-2;
-  return `<div class="ev ${cls}" data-id="${id}" data-t="${t}" style="top:${(e.start-S0)/30*H}px;height:${ht}px;background-color:${e.color};color:${ink(e.color)}"><b>${cls?'🔒 ':''}${esc(e.title||e.name)}</b>${ht>30?`<small>${tm(e.start)}–${tm(e.start+e.dur)}</small>`:''}</div>`;
+  return `<div class="ev ${cls}" data-id="${id}" data-t="${t}" style="top:${(e.start-S0)/30*H}px;height:${ht}px;background-color:${e.color};color:${ink(e.color)};--g:${e.color}"><b>${e.hl?'⭐ ':''}${/cls/.test(cls)?'🔒 ':''}${esc(e.title||e.name)}</b>${ht>30?`<small>${tm(e.start)}–${tm(e.start+e.dur)}</small>`:''}</div>`;
 }
 function hist(){
   const L=Object.values(st.lg).sort((a,b)=>b.ts-a.ts).slice(0,300);
@@ -290,7 +294,7 @@ function open(o){
   <div class="tp"><select id="hh">${opts(hrs(S0/60,S1/60-1),Math.floor(o.start/60))}</select><b>:</b><select id="hm">${opts(mins(o.start%60),o.start%60)}</select></div>
   ${len}
   <div class="sum" id="sm"></div>
-  ${adm&&!cls?`<label class="ck" style="margin-top:12px;font-size:18px" title="נעול" aria-label="נעול"><input type="checkbox" id="lk" ${o.locked?'checked':''}> 🔒</label>`:''}<label>צבע</label><div class="cp"><div class="wh"><div class="ring" id="ring"></div><div class="mk" id="mk"></div><div class="pv" id="pv"></div></div>${adm?`<div class="sw" id="sw"><i data-c="${BLK}" style="background:${BLK}" title="שחור"></i><i data-c="${GRAY}" style="background:${GRAY}" title="אפור"></i></div>`:''}</div>
+  ${adm&&!cls?`<div class="cks"><label class="ck" style="flex:none;font-size:18px" title="נעול" aria-label="נעול"><input type="checkbox" id="lk" ${o.locked?'checked':''}> 🔒</label><label class="ck" style="flex:none" title="הדגשה (למשל ריצה כללית)"><input type="checkbox" id="hlc" ${o.hl?'checked':''}> ⭐ הדגשה</label></div>`:''}<label>צבע</label><div class="cp"><div class="wh"><div class="ring" id="ring"></div><div class="mk" id="mk"></div><div class="pv" id="pv"></div></div>${adm?`<div class="sw" id="sw"><i data-c="${BLK}" style="background:${BLK}" title="שחור"></i><i data-c="${GRAY}" style="background:${GRAY}" title="אפור"></i></div>`:''}</div>
   <div class="err" id="er"></div>
   <div class="acts"><button class="btn pri" id="sv">שמירה</button><button class="btn" id="cn">ביטול</button><span class="sp"></span>${isNew?'':'<button class="btn del" id="rm">מחיקה</button>'}</div>`;
   paint();paintTime();$('#m').classList.add('on');
@@ -343,7 +347,7 @@ $('#m').onclick=e=>{
   if(dirty&&$('#nm')){$('#er').innerHTML='יש שינויים שלא נשמרו.<button class="btn del" id="lv">לסגור בלי לשמור</button>';$('#lv').onclick=close;return}
   close()};
 function close(){$('#m').classList.remove('on');dirty=false}
-const sum=x=>`${x.name||x.title} · ${SN[x.studio]} · ${x.date||'כל '+DAYS[x.wd]} ${tm(x.start)}–${tm(x.start+x.dur)}`;
+const sum=x=>`${x.hl?'⭐ ':''}${x.name||x.title} · ${SN[x.studio]} · ${x.date||'כל '+DAYS[x.wd]} ${tm(x.start)}–${tm(x.start+x.dur)}`;
 const log=(a,x)=>{st.db.collection('history').doc(uid()).set({ts:Date.now(),action:a,by:myName||'לא ידוע',text:sum(x)}).catch(()=>{})};
 let tt;function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(tt);tt=setTimeout(()=>t.style.display='none',3500)}
 const fail=()=>toast('השמירה נכשלה, נסו שוב');
@@ -374,7 +378,7 @@ function save(){
     if(w===6)return er('אין חזרות בשבת.');
     for(const c of Object.values(st.cl))if(c.studio===studio&&c.wd===w&&clash(me,c))return er('מתנגש עם השיעור: '+c.title+at);
     for(const [id,b] of Object.entries(st.bk))if(b.studio===studio&&b.date===dk&&id!==cur.id&&clash(me,b))return er('מתנגש עם '+b.name+' ('+tm(b.start)+'–'+tm(b.start+b.dur)+')'+at);
-    items.push({id:k?uid():(cur.id||uid()),x:{studio,date:dk,start,dur,name,color,locked:!!($('#lk')&&$('#lk').checked)}});
+    items.push({id:k?uid():(cur.id||uid()),x:{studio,date:dk,start,dur,name,color,locked:!!($('#lk')&&$('#lk').checked),hl:adm?!!$('#hlc').checked:!!(cur.id&&st.bk[cur.id]&&st.bk[cur.id].hl)}});
   }
   myName=name;try{localStorage.setItem('nm',name)}catch(e){}
   if(!cur.id||picked)saveColor(color);                        // זוכרים את הצבע לפעם הבאה – רק בהזמנה חדשה או כשנבחר צבע, לא בעריכת חזרה של מישהו אחר
