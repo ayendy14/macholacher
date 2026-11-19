@@ -94,7 +94,7 @@ th{color:var(--mut);font-weight:600}
 <div class="modal" id="m"><div class="box" id="box"></div></div><div class="toast" id="toast"></div>
 <script>
 const BLK='#111111',GRAY='#6b7280';                      // צבעים למנהל בלבד
-// ===== צבעים: גלגל צבעים עם 30 גוונים בהירים (בלי שחור/אפור/לבן) =====
+// ===== צבעים: גלגל צבעים עם גוונים בהירים (בלי שחור/אפור/לבן) =====
 const STEPS=30,SAT=72,LIT=48;                            // מספר הגוונים בגלגל, רוויה ובהירות
 const hsl=h=>{const s=SAT/100,l=LIT/100,f=n=>{const k=(n+h/30)%12,c=l-s*Math.min(l,1-l)*Math.max(-1,Math.min(k-3,9-k,1));return Math.round(c*255).toString(16).padStart(2,'0')};return '#'+f(0)+f(8)+f(4)};
 const hueOf=c=>{const r=parseInt(c.slice(1,3),16)/255,g=parseInt(c.slice(3,5),16)/255,b=parseInt(c.slice(5,7),16)/255,mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn;if(d<.08)return null;let h=mx===r?((g-b)/d)%6:mx===g?(b-r)/d+2:(r-g)/d+4;return (h*60+360)%360};
@@ -142,16 +142,6 @@ const RemoteDB=(()=>{
     onSnapshot(f){(L[c]=L[c]||[]).push(f);poll();return()=>{}},
     doc:id=>({set:async d=>{D[c][id]=d;fire(c);await w(c,id,d)},delete:async()=>{delete D[c][id];fire(c);await w(c,id,null)}})
   })}
-})();
-
-(async()=>{
-  st.db=RemoteDB;
-  if(st.db){
-    const sub=(c,t)=>st.db.collection(c).onSnapshot(s=>{st[t]={};s.docs.forEach(d=>st[t][d.id]=d.data());render()},()=>{});
-    sub('bookings','bk');sub('classes','cl');sub('settings','set');
-    [['bookings','bk'],['classes','cl'],['settings','set']].forEach(([c,t])=>st.db.collection(c).get().then(s=>{s.docs.forEach(d=>{if(!st[t][d.id])st[t][d.id]=d.data()});render()}).catch(()=>{}));
-  }
-  render();
 })();
 
 function render(){
@@ -277,27 +267,27 @@ function resetAll(){
 }
 
 // ===== טופס הזמנה / שיעור =====
-let cur=null,color=null,pDur=60;                      // pDur = משך בדקות (למשתמש רגיל)
+let cur=null,color=null,pDur=60,picked=false;          // picked = המשתמש בחר צבע בעצמו בטופס הזה                      // pDur = משך בדקות (למשתמש רגיל)
 const MINS=[0,15,30,45];
 const pStart=()=>+$('#hh').value*60+ +$('#hm').value;
 const pEnd=()=>st.admin?+$('#eh').value*60+ +$('#em').value:pStart()+pDur;
 const setT=(h,m,v)=>{v=Math.min(Math.max(v,S0),S1);$(h).value=Math.floor(v/60);$(m).value=v%60};
 function open(o){
-  cur=o;color=o.color||myColor();pDur=o.dur||60;
+  cur=o;color=o.color||myColor();pDur=o.dur||60;picked=false;
   if(!st.admin&&(color===BLK||color===GRAY||hueOf(color)===null))color=hsl(210);   // משתמש רגיל לא יכול להשאיר שחור/אפור
   const cls=o.mode==='c',isNew=!o.id,adm=st.admin;
   const opts=(a,v)=>a.map(x=>`<option value="${x[0]}" ${x[0]==v?'selected':''}>${x[1]}</option>`).join('');
   const hrs=(a,b)=>{const r=[];for(let h=a;h<=b;h++)r.push([h,String(h).padStart(2,'0')]);return r};
-  const mins=MINS.map(m=>[m,String(m).padStart(2,'0')]);
-  const when=cls?`<div><label>יום</label><select id="dy">${opts(DAYS.map((d,i)=>[i,d]),o.wd)}</select></div>`:`<div><label>תאריך</label><input type="date" id="dt" value="${o.date||''}"></div>`;
   const end=o.start+(o.dur||60);
-  const len=adm?`<label>שעת סיום</label><div class="tp"><select id="eh">${opts(hrs(S0/60,S1/60),Math.floor(end/60))}</select><b>:</b><select id="em">${opts(mins,end%60)}</select></div>`
+  const mins=v=>{const a=MINS.slice();if(!a.includes(v))a.push(v),a.sort((x,y)=>x-y);return a.map(m=>[m,String(m).padStart(2,'0')])};  // שומרים דקות ישנות (למשל 11:05) כדי שלא ישתנו בשמירה
+  const when=cls?`<div><label>יום</label><select id="dy">${opts(DAYS.map((d,i)=>[i,d]),o.wd)}</select></div>`:`<div><label>תאריך</label><input type="date" id="dt" value="${o.date||''}"></div>`;
+  const len=adm?`<label>שעת סיום</label><div class="tp"><select id="eh">${opts(hrs(S0/60,S1/60),Math.floor(end/60))}</select><b>:</b><select id="em">${opts(mins(end%60),end%60)}</select></div>`
                :`<label>משך</label><div class="seg" id="du"></div>`;
   $('#box').innerHTML=`<h2>${cls?(isNew?'שיעור קבוע חדש':'שיעור קבוע'):isNew?'הזמנת חזרה':'עריכת חזרה'}</h2>
   <label>${cls?'שם השיעור':'שם היוצרת'}</label><input id="nm" value="${esc(cls?o.title:o.name)}" maxlength="40">
   <div class="row"><div><label>סטודיו</label><select id="st">${opts([['A',SN.A],['B',SN.B]],o.studio)}</select></div>${when}</div>
   <label>שעת התחלה</label>
-  <div class="tp"><select id="hh">${opts(hrs(S0/60,S1/60-1),Math.floor(o.start/60))}</select><b>:</b><select id="hm">${opts(mins,o.start%60)}</select></div>
+  <div class="tp"><select id="hh">${opts(hrs(S0/60,S1/60-1),Math.floor(o.start/60))}</select><b>:</b><select id="hm">${opts(mins(o.start%60),o.start%60)}</select></div>
   ${len}
   <div class="sum" id="sm"></div>
   ${adm&&!cls?`<label class="ck" style="margin-top:12px;font-size:18px" title="נעול" aria-label="נעול"><input type="checkbox" id="lk" ${o.locked?'checked':''}> 🔒</label>`:''}<label>צבע</label><div class="cp"><div class="wh"><div class="ring" id="ring"></div><div class="mk" id="mk"></div><div class="pv" id="pv"></div></div>${adm?`<div class="sw" id="sw"><i data-c="${BLK}" style="background:${BLK}" title="שחור"></i><i data-c="${GRAY}" style="background:${GRAY}" title="אפור"></i></div>`:''}</div>
@@ -318,12 +308,15 @@ function paintTime(){
   if(!st.admin)$('#du').innerHTML=DURS.map(d=>`<button type="button" data-d="${d}" class="${d===pDur?'on':''}">${L[d]}</button>`).join('');
   const s=pStart(),e=pEnd(),d=e-s,ex=st.admin&&d>0?` <span dir="rtl">(${d} דק׳)</span>`:'';
   $('#sm').innerHTML=tm(s)+' – '+tm(e)+ex;
-  $('#sm').style.color=d>0?'':'#c0392b';
+  $('#sm').style.color=d>0&&e<=S1?'':'#c0392b';               // אדום אם הסיום לפני ההתחלה או אחרי שעת הסגירה
 }
-// גלגל הצבעים: נצבע ב-24 מקטעים, לחיצה או גרירה בוחרת את הגוון הקרוב
+// גלגל הצבעים: נצבע ב-STEPS מקטעים, לחיצה או גרירה בוחרת את הגוון הקרוב
 function paint(){
   const ring=$('#ring'),seg=360/STEPS;
-  ring.style.background='conic-gradient('+[...Array(STEPS)].map((_,i)=>`${hsl(i*seg)} ${i*seg-seg/2}deg ${i*seg+seg/2}deg`).join(',')+','+hsl(0)+' 352.5deg)';
+  ring.style.background='conic-gradient('+[...Array(STEPS)].map((_,i)=>`${hsl(i*seg)} ${i*seg-seg/2}deg ${i*seg+seg/2}deg`).join(',')+','+hsl(0)+' '+(360-seg/2)+'deg)';
+  // גודל העיגול המסמן לפי רוחב מקטע אחד בגלגל (בין 14 ל-28 פיקסלים)
+  const sz=Math.max(14,Math.min(28,Math.round(2*Math.PI*61/STEPS)+4)),mk=$('#mk');
+  mk.style.width=mk.style.height=sz+'px';mk.style.margin=(-sz/2)+'px 0 0 '+(-sz/2)+'px';mk.style.borderWidth=(sz<18?2:3)+'px';
   const show=()=>{
     const h=hueOf(color),mk=$('#mk'),pv=$('#pv');
     if(h===null||color===BLK||color===GRAY)mk.style.display='none';
@@ -334,13 +327,13 @@ function paint(){
   const pick=e=>{
     const b=ring.getBoundingClientRect(),x=e.clientX-b.left-b.width/2,y=e.clientY-b.top-b.height/2;
     let a=Math.atan2(x,-y)*180/Math.PI;if(a<0)a+=360;
-    color=hsl(snap(a));dirty=true;show();
+    color=hsl(snap(a));dirty=picked=true;show();
   };
   let down=false;
   ring.onpointerdown=e=>{down=true;ring.setPointerCapture(e.pointerId);pick(e)};
   ring.onpointermove=e=>{if(down)pick(e)};
   ring.onpointerup=ring.onpointercancel=()=>{down=false};
-  if($('#sw'))$('#sw').onclick=e=>{if(e.target.dataset.c){color=e.target.dataset.c;dirty=true;show()}};
+  if($('#sw'))$('#sw').onclick=e=>{if(e.target.dataset.c){color=e.target.dataset.c;dirty=picked=true;show()}};
   show();
 }
 // לחיצה על הרקע סוגרת את הטופס – אלא אם יש שינויים שלא נשמרו, ואז מבקשים אישור
@@ -384,7 +377,7 @@ function save(){
     items.push({id:k?uid():(cur.id||uid()),x:{studio,date:dk,start,dur,name,color,locked:!!($('#lk')&&$('#lk').checked)}});
   }
   myName=name;try{localStorage.setItem('nm',name)}catch(e){}
-  saveColor(color);                                           // זוכרים את הצבע לפעם הבאה במכשיר הזה
+  if(!cur.id||picked)saveColor(color);                        // זוכרים את הצבע לפעם הבאה – רק בהזמנה חדשה או כשנבחר צבע, לא בעריכת חזרה של מישהו אחר
   const old=cur.id?st.bk[cur.id]:null;
   items.forEach(({id,x})=>{st.bk[id]=x;st.db.collection('bookings').doc(id).set(x).catch(fail)});
   close();render();
@@ -397,4 +390,15 @@ async function remove(){
   if(cur.mode==='c'){const c=st.cl[id];delete st.cl[id];close();render();st.db.collection('classes').doc(id).delete().catch(fail);log('שיעור נמחק',c)}
   else{const b=st.bk[id];delete st.bk[id];close();render();st.db.collection('bookings').doc(id).delete().catch(fail);log('נמחק',b)}
 }
+
+// ===== הפעלה – בסוף הקובץ, אחרי שכל הפונקציות הוגדרו =====
+(async()=>{
+  st.db=RemoteDB;
+  if(st.db){
+    const sub=(c,t)=>st.db.collection(c).onSnapshot(s=>{st[t]={};s.docs.forEach(d=>st[t][d.id]=d.data());render()},()=>{});
+    sub('bookings','bk');sub('classes','cl');sub('settings','set');
+    [['bookings','bk'],['classes','cl'],['settings','set']].forEach(([c,t])=>st.db.collection(c).get().then(s=>{s.docs.forEach(d=>{if(!st[t][d.id])st[t][d.id]=d.data()});render()}).catch(()=>{}));
+  }
+  render();
+})();
 </script></body></html>
