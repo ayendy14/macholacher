@@ -6,10 +6,10 @@ A small, single-page website for booking rehearsal time in two dance studios ahe
 
 ## What it does
 
-- **Weekly schedule** — shows Sunday to Friday, 08:00 to 23:00, with two columns per day: the large studio (סטודיו גדול) and the small studio (סטודיו קטן). On a phone it shows two days at a time.
+- **Weekly schedule** — shows Sunday to Friday (or Sunday to Saturday, if admin turns Saturday on), 08:00 to 23:00, with two columns per day: the large studio (סטודיו גדול) and the small studio (סטודיו קטן). On a phone it shows two days at a time.
 - **Booking a rehearsal** — click an empty slot (the top or bottom half of a slot picks the quarter hour), enter a name, pick a studio, a start time (hour and minutes, in 15-minute steps), a length (30, 45 or 60 minutes) and a colour. A live summary shows the resulting time range. Existing bookings can be edited or deleted by clicking them.
 - **Colour ring** — colours are chosen on a ring of bright shades, so bookings stay readable; text on light colours turns dark automatically. Each device remembers the colour its user last booked with.
-- **Booking rules** — a booking cannot overlap another booking or a fixed class in the same studio, cannot run past closing time, and cannot fall on Saturday. Each person is limited to one rehearsal per week.
+- **Booking rules** — a booking cannot overlap another booking or a fixed class in the same studio, cannot run past closing time, and cannot fall on Saturday unless admin has turned Saturday on. Each person is limited to one rehearsal per week.
 - **Countdown** — a badge at the top counts down to the show date (default: 11 February 2027), in months and weeks, then in days during the last week, with the total number of days shown alongside.
 - **Live updates** — the page refreshes its data every 20 seconds while in use, every minute when idle, and immediately when you return to the tab.
 - **Safety nets** — a loading screen on first entry, and a warning before closing a booking form that has unsaved changes.
@@ -24,6 +24,7 @@ The faint lock icon in the top corner opens a password prompt. An admin can:
 - **Highlight** a booking (⭐) — it glows on the schedule, useful for run-throughs and other key rehearsals.
 - View the **history** (היסטוריה) of the last 300 changes: who booked, edited or deleted what, and when.
 - Change or remove the **show date** used by the countdown.
+- **Add or remove Saturday** from the schedule. Hiding Saturday keeps its existing bookings and classes; they reappear when it is turned back on.
 - **Reset** all rehearsals, optionally with the fixed timetable too. This cannot be undone.
 
 ## Files
